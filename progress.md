@@ -18,5 +18,10 @@
 - Expanded environment variable documentation to cover current source defaults and `.env` fields.
 - Expanded tool parameter documentation and troubleshooting cases.
 
-## Next
-- Search docs after edits for stale URL/auth/config wording.
+## Verification
+- Ran a Node-based docs consistency check; it passed.
+- Searched docs for ngrok URL examples, OAuth wording, `/mcp`, No Authentication, and key env variables.
+- Confirmed OAuth mentions are framed as warnings or advanced implementation notes, not as ChatGPT setup instructions.
+
+## Done
+- Docs update task completed.

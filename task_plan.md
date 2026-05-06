@@ -14,7 +14,7 @@ Update all existing documents under `docs/` so they match the current code, `.en
 |---|---|---|
 | 1. Audit current docs and config | complete | Compared docs with `.env`, README, and source defaults. |
 | 2. Update existing docs | complete | Edited all 7 existing docs files. |
-| 3. Verify consistency | in_progress | Search for inconsistent URLs, OAuth guidance, env defaults, and stale wording. |
+| 3. Verify consistency | complete | Node content checks and grep searches passed. |
 
 ## Files to Review
 - `docs/ChatGPT连接指南.md`

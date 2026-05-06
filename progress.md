@@ -12,6 +12,11 @@
 - Confirmed HTTP app exposes `/`, `/health`, optional `/debug/config`, `/mcp`, legacy `/sse`, and `/messages`.
 - Confirmed tool list from `src/mcp/tools/register.ts` matches existing docs but several parameter names/details need clarification.
 
+## Docs updated
+- Rewrote all 7 existing docs files under `docs/`.
+- Added explicit ChatGPT connector guidance: URL must end with `/mcp`; authentication must be No Authentication unless OAuth is implemented later.
+- Expanded environment variable documentation to cover current source defaults and `.env` fields.
+- Expanded tool parameter documentation and troubleshooting cases.
+
 ## Next
-- Edit existing docs for consistency.
 - Search docs after edits for stale URL/auth/config wording.

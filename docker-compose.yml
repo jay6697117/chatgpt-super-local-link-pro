@@ -1,0 +1,10 @@
+services:
+  super-local-link:
+    build: .
+    env_file: .env
+    ports:
+      - "2091:2091"
+    volumes:
+      # 示例：把本机项目挂载到容器内，再把 ROOTS 改成 /projects/my-app
+      # - D:/work/JiaDianAI:/projects/JiaDianAI:rw
+      - ./workspace:/app/workspace:rw

@@ -1,0 +1,36 @@
+{
+  "name": "chatgpt-super-local-link-pro",
+  "version": "1.1.0",
+  "description": "Production-style Node.js/TypeScript remote MCP server for safely connecting ChatGPT to whitelisted local project directories.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "doctor": "tsx src/scripts/doctor.ts",
+    "test": "node --test --import tsx tests/**/*.test.ts",
+    "check": "npm run build && npm test && npm run doctor",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "mcp:inspector": "npx @modelcontextprotocol/inspector@latest --server-url http://localhost:2091/mcp --transport http"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "minimatch": "^9.0.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

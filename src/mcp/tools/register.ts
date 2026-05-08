@@ -169,7 +169,7 @@ export function registerFilesystemTools(server: McpServer, config: AppConfig): v
         content: z.string().describe('UTF-8 text content.'),
         overwrite: z.boolean().optional().describe('Default false. Existing file replacement requires ALLOW_OVERWRITE=1.')
       },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
     async ({ path, content, overwrite = false }) => runTool(() => writeTextFile(path, content, overwrite, config) as Promise<Record<string, unknown>>)
   );
@@ -184,7 +184,7 @@ export function registerFilesystemTools(server: McpServer, config: AppConfig): v
         content: z.string().describe('UTF-8 text to append.'),
         createIfMissing: z.boolean().optional().describe('Default false. Create the file when missing.')
       },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
     async ({ path, content, createIfMissing = false }) => runTool(() => appendTextFile(path, content, createIfMissing, config) as Promise<Record<string, unknown>>)
   );
@@ -200,7 +200,7 @@ export function registerFilesystemTools(server: McpServer, config: AppConfig): v
         newText: z.string().describe('Replacement text.'),
         replaceAll: z.boolean().optional().describe(`Default false. When true, max ${config.maxReplaceOccurrences} occurrences.`)
       },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
     async ({ path, oldText, newText, replaceAll = false }) => runTool(() => replaceInTextFile(path, oldText, newText, replaceAll, config) as Promise<Record<string, unknown>>)
   );

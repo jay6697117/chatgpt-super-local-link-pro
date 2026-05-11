@@ -73,7 +73,22 @@ const envSchema = z.object({
   DEFAULT_EXCLUDE_PATTERNS: z.string().default(''),
   EXTRA_EXCLUDE_PATTERNS: z.string().optional().default(''),
   BLOCKED_EXTENSIONS: z.string().optional().default(''),
-  ENABLE_DEBUG_ENDPOINTS: z.string().optional().default('1')
+  ENABLE_DEBUG_ENDPOINTS: z.string().optional().default('1'),
+
+  LOCAL_AGENT_ENABLED: z.string().optional().default('0'),
+  LOCAL_AGENT_MODEL_BASE_URL: z.string().optional().default('https://api.openai.com/v1'),
+  LOCAL_AGENT_MODEL_API_KEY: z.string().optional().default(''),
+  LOCAL_AGENT_MODEL_NAME: z.string().optional().default('gpt-4.1'),
+  LOCAL_AGENT_MAX_TURNS: z.coerce.number().int().min(1).max(50).default(8),
+  LOCAL_AGENT_MAX_TOOL_CALLS: z.coerce.number().int().min(1).max(200).default(30),
+  LOCAL_AGENT_MAX_OUTPUT_BYTES: z.coerce.number().int().min(1024).default(65536),
+  LOCAL_AGENT_SESSION_TTL_MS: z.coerce.number().int().min(1000).default(1800000),
+  LOCAL_AGENT_MAX_SESSION_COUNT: z.coerce.number().int().min(1).default(20),
+  AGENT_BASH_ENABLED: z.string().optional().default('0'),
+  AGENT_BASH_ALLOWLIST: z.string().optional().default(''),
+  AGENT_BASH_TIMEOUT_MS: z.coerce.number().int().min(100).default(120000),
+  AGENT_BASH_MAX_OUTPUT_BYTES: z.coerce.number().int().min(1024).default(65536),
+  AGENT_BASH_INHERIT_ENV: z.string().optional().default('0')
 });
 
 export interface AllowedRoot {
@@ -126,6 +141,24 @@ export interface AppConfig {
   extraExcludePatterns: string[];
   blockedExtensions: string[];
   enableDebugEndpoints: boolean;
+  localAgent: {
+    enabled: boolean;
+    modelBaseUrl: string;
+    modelApiKey: string;
+    modelName: string;
+    maxTurns: number;
+    maxToolCalls: number;
+    maxOutputBytes: number;
+    sessionTtlMs: number;
+    maxSessionCount: number;
+  };
+  agentBash: {
+    enabled: boolean;
+    allowlist: string[];
+    timeoutMs: number;
+    maxOutputBytes: number;
+    inheritEnv: boolean;
+  };
 }
 
 export function splitSemicolonList(value: string | undefined): string[] {
@@ -227,7 +260,25 @@ export function loadConfig(): AppConfig {
     defaultExcludePatterns: splitSemicolonList(parsed.DEFAULT_EXCLUDE_PATTERNS),
     extraExcludePatterns: splitSemicolonList(parsed.EXTRA_EXCLUDE_PATTERNS),
     blockedExtensions: splitCommaList(parsed.BLOCKED_EXTENSIONS).map((ext) => ext.toLowerCase()),
-    enableDebugEndpoints: toBoolean(parsed.ENABLE_DEBUG_ENDPOINTS, true)
+    enableDebugEndpoints: toBoolean(parsed.ENABLE_DEBUG_ENDPOINTS, true),
+    localAgent: {
+      enabled: toBoolean(parsed.LOCAL_AGENT_ENABLED, false),
+      modelBaseUrl: parsed.LOCAL_AGENT_MODEL_BASE_URL.trim().replace(/\/+$/, ''),
+      modelApiKey: parsed.LOCAL_AGENT_MODEL_API_KEY.trim(),
+      modelName: parsed.LOCAL_AGENT_MODEL_NAME.trim(),
+      maxTurns: parsed.LOCAL_AGENT_MAX_TURNS,
+      maxToolCalls: parsed.LOCAL_AGENT_MAX_TOOL_CALLS,
+      maxOutputBytes: parsed.LOCAL_AGENT_MAX_OUTPUT_BYTES,
+      sessionTtlMs: parsed.LOCAL_AGENT_SESSION_TTL_MS,
+      maxSessionCount: parsed.LOCAL_AGENT_MAX_SESSION_COUNT
+    },
+    agentBash: {
+      enabled: toBoolean(parsed.AGENT_BASH_ENABLED, false),
+      allowlist: splitSemicolonList(parsed.AGENT_BASH_ALLOWLIST),
+      timeoutMs: parsed.AGENT_BASH_TIMEOUT_MS,
+      maxOutputBytes: parsed.AGENT_BASH_MAX_OUTPUT_BYTES,
+      inheritEnv: toBoolean(parsed.AGENT_BASH_INHERIT_ENV, false)
+    }
   };
 }
 
@@ -263,6 +314,15 @@ export function publicConfigSummary(config: AppConfig): Record<string, unknown> 
       maxTreeEntries: config.maxTreeEntries,
       maxSearchFiles: config.maxSearchFiles,
       maxSearchResults: config.maxSearchResults
+    },
+    localAgent: {
+      enabled: config.localAgent.enabled,
+      modelBaseUrl: config.localAgent.modelBaseUrl,
+      modelName: config.localAgent.modelName || null,
+      maxTurns: config.localAgent.maxTurns,
+      maxToolCalls: config.localAgent.maxToolCalls,
+      safeBashEnabled: config.agentBash.enabled,
+      safeBashAllowlistCount: config.agentBash.allowlist.length
     },
     allowedRoots: config.allowedRoots.map((root) => ({ id: root.id, path: root.path, input: root.input }))
   };

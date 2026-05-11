@@ -1,20 +1,37 @@
 # Findings
 
-## Session catchup
-- Previous context emphasized that ChatGPT connector URL must include `/mcp`.
-- Authentication should be `No Authentication`, not OAuth, because this project currently uses `AUTH_MODE=no-auth` and OAuth discovery routes intentionally return 404.
+## Reference repository
+- `claude-copy-code/` was cloned locally only for architecture research.
+- It is a reverse-sourcemap reconstruction, not official upstream source.
+- Use it for patterns only: QueryEngine/session state, Tool contract, tool execution lifecycle, read-before-write, stale check, safe Bash concepts.
+- Do not copy code from it and do not commit the clone.
 
-## Current observed state
-- `git diff --stat` shows only `.env` has an existing local change; this task should not modify `.env`.
-- Existing docs files: `ChatGPT连接指南.md`, `安全策略.md`, `二次开发说明.md`, `工具清单.md`, `故障排查.md`, `环境变量说明.md`, `使用说明.md`.
-- `package.json` scripts include `dev`, `build`, `start`, `doctor`, `test`, `check`, and `mcp:inspector` using `http://localhost:2091/mcp`.
-- `.env` defaults currently observed: `PORT=2091`, `HOST=127.0.0.1`, `MCP_PATH=/mcp`, `AUTH_MODE=no-auth`, `ROOTS=./workspace`, `ALLOW_RELATIVE_PATHS=1`.
+## Current project baseline
+- Current MCP server creation is in `src/mcp/createServer.ts`.
+- Existing filesystem tool registration is in `src/mcp/tools/register.ts`.
+- Existing filesystem operations are in `src/filesystem/service.ts`.
+- Path security is centralized in `src/security/pathGuards.ts` via `resolveAllowedPath`.
+- Config loading is in `src/config/env.ts`.
+- Error serialization is in `src/core/errors.ts`.
+- Existing tests use Node test runner with tsx, script: `npm test`.
 
-## Required documentation alignment
-- Public ChatGPT connector URL format: `https://你的公网域名/mcp`.
-- Local MCP URL format: `http://127.0.0.1:2091/mcp`.
-- ChatGPT connector authentication: `No Authentication` / `无身份验证`.
-- OAuth settings should be documented as not configured unless implemented later.
-- `ENABLE_LEGACY_SSE=1` keeps `/sse` and `/messages` available for legacy clients, but ChatGPT should use `/mcp`.
-- `.env` includes additional documented defaults that docs should cover: `TRUST_PROXY`, `LOG_LEVEL`, `LOG_DIR`, `HTTP_RATE_LIMIT_WINDOW_MS`, `HTTP_RATE_LIMIT_MAX`, `MAX_SEARCH_RESULT_LINE_CHARS`, `MAX_PROJECT_OVERVIEW_FILES`, `ENABLE_DEBUG_ENDPOINTS`.
-- Current local `.env` value for `ROOTS` is `/Users/zhangjinhui/Desktop`, but the code default remains `./workspace`; docs should describe default and safe examples rather than copy a broad local path.
+## Key design decisions
+- Add a new `src/agent/` subsystem instead of mixing agent logic into existing filesystem MCP tools.
+- Keep existing public filesystem MCP tools available.
+- Make agent-internal write/replace stricter than current direct MCP write tools.
+- Add `local_agent_run` as the high-level MCP entrypoint.
+- Use an OpenAI-compatible model client abstraction based on Node 20 `fetch`; tests use fake model clients.
+- Safe Bash is default-disabled and allowlist-only.
+- Agent sessions are process-memory only for MVP; no transcript persistence to disk.
+
+## Documentation update targets
+- `docs/工具清单.md` currently documents only filesystem tools; it needs `local_agent_run` after implementation.
+- `docs/安全策略.md` currently says the project deliberately does not provide shell execution; this must change to explain default-disabled safe Bash.
+- `docs/环境变量说明.md` currently lacks local agent and safe Bash env fields.
+
+## Security rules to preserve
+- All paths must stay within ROOTS.
+- Symlink escape must remain blocked.
+- Sensitive/default blocked paths stay blocked.
+- Existing file edit/overwrite inside agent requires prior full read and stale check.
+- Bash must reject shell metacharacters, command paths, dangerous command families, and non-allowlisted commands.

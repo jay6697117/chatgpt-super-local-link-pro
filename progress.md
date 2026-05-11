@@ -1,27 +1,27 @@
 # Progress
 
-## 2026-05-06
-- Started docs update task.
-- Ran session catchup; no previous planning files existed.
-- Listed docs directory and confirmed 7 existing docs files.
-- Confirmed current task scope: update existing docs only; do not modify `.env` or source code.
+## 2026-05-11
+- User approved plan to implement ChatGPT Local Coding Agent MCP Server MVP.
+- Plan file saved at `/Users/zhangjinhui/.claude/plans/stateless-wishing-mccarthy.md`.
+- Created team `local-coding-agent-mvp`.
+- Created implementation tasks for planning hygiene, agent core, readFileState/filesystem wrappers, safe Bash/config, and tests.
 
-## Current findings
-- Read all 7 docs files.
-- Confirmed source supports `no-auth` and optional `bearer`; OAuth discovery endpoints intentionally return 404.
-- Confirmed HTTP app exposes `/`, `/health`, optional `/debug/config`, `/mcp`, legacy `/sse`, and `/messages`.
-- Confirmed tool list from `src/mcp/tools/register.ts` matches existing docs but several parameter names/details need clarification.
+## Current status
+- Planning and safety hygiene completed.
+- `claude-copy-code/` is now ignored and remains a local reference clone only.
+- Added base local-agent config fields in `src/config/env.ts`.
+- Added local-agent error codes in `src/core/errors.ts`.
+- Added agent subsystem under `src/agent/`: readFileState, filesystem wrappers, ToolRegistry, ModelClient, QueryEngine, AgentSession, and safe Bash.
+- Added `local_agent_run` MCP registration while preserving existing filesystem tools.
+- Updated `.env.example`, README, and docs for local agent and safe Bash configuration.
+- Added tests for readFileState, safe Bash, AgentSession fake model flow, local_agent_run, and ToolRegistry result handling.
+- `npm run build`, `npm test`, and `npm run doctor` passed.
 
-## Docs updated
-- Rewrote all 7 existing docs files under `docs/`.
-- Added explicit ChatGPT connector guidance: URL must end with `/mcp`; authentication must be No Authentication unless OAuth is implemented later.
-- Expanded environment variable documentation to cover current source defaults and `.env` fields.
-- Expanded tool parameter documentation and troubleshooting cases.
+## Verification commands
+- `npm run build` — passed
+- `npm test` — passed, 16 tests
+- `npm run doctor` — passed
+- `npm run check` — passed
 
-## Verification
-- Ran a Node-based docs consistency check; it passed.
-- Searched docs for ngrok URL examples, OAuth wording, `/mcp`, No Authentication, and key env variables.
-- Confirmed OAuth mentions are framed as warnings or advanced implementation notes, not as ChatGPT setup instructions.
-
-## Done
-- Docs update task completed.
+## Errors
+- None yet.

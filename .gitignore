@@ -8,3 +8,4 @@ logs/
 workspace/**
 !workspace/README.md
 *.backup-*
+claude-copy-code/

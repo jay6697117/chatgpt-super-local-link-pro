@@ -52,7 +52,25 @@ function makeConfig(root: string): AppConfig {
     defaultExcludePatterns: ['**/.env', '**/.env.*', '**/node_modules/**', '**/.git/**', '**/*secret*'],
     extraExcludePatterns: [],
     blockedExtensions: ['.pem', '.key'],
-    enableDebugEndpoints: false
+    enableDebugEndpoints: false,
+    localAgent: {
+      enabled: false,
+      modelBaseUrl: 'https://api.openai.com/v1',
+      modelApiKey: '',
+      modelName: 'gpt-4.1',
+      maxTurns: 8,
+      maxToolCalls: 30,
+      maxOutputBytes: 65536,
+      sessionTtlMs: 1800000,
+      maxSessionCount: 20
+    },
+    agentBash: {
+      enabled: false,
+      allowlist: [],
+      timeoutMs: 120000,
+      maxOutputBytes: 65536,
+      inheritEnv: false
+    }
   };
 }
 

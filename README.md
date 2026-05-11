@@ -7,7 +7,8 @@
 - 采用类似 cyanheads filesystem MCP 的分层工程结构：Transport / API / Core / Security / Filesystem Tools。
 - 采用 OpenAI Apps SDK 推荐的连接方式：本地启动 `/mcp`，用 ngrok / Cloudflare Tunnel 暴露 HTTPS，再在 ChatGPT Connectors 创建连接器。
 - 所有运行参数集中在 `.env`，默认只读、默认白名单、默认屏蔽敏感文件。
-- 不提供 shell 执行，不提供删除，不读取 `.env`、密钥、数据库、构建产物、依赖目录。
+- 可选提供 `local_agent_run` 本地写代码代理；默认关闭，开启后仍受 ROOTS、读前写、模型轮次和工具调用上限约束。
+- 不提供删除；安全 Bash 默认关闭，只能在 agent 内部运行 `AGENT_BASH_ALLOWLIST` 精确允许的命令。
 
 ## 快速开始
 
@@ -63,6 +64,12 @@ BACKUP_BEFORE_OVERWRITE=1
 
 ## 可用工具
 
+高层代理工具：
+
+- `local_agent_run`
+
+直接文件系统工具：
+
 - `list_allowed_roots`
 - `project_overview`
 - `directory_tree`
@@ -75,6 +82,33 @@ BACKUP_BEFORE_OVERWRITE=1
 - `append_file`
 - `replace_in_file`
 - `server_config_summary`
+
+## 可选本地写代码代理
+
+默认关闭：
+
+```env
+LOCAL_AGENT_ENABLED=0
+AGENT_BASH_ENABLED=0
+```
+
+开启 `local_agent_run` 至少需要配置 OpenAI-compatible Chat Completions 模型：
+
+```env
+LOCAL_AGENT_ENABLED=1
+LOCAL_AGENT_MODEL_BASE_URL=https://api.openai.com/v1
+LOCAL_AGENT_MODEL_API_KEY=你的本机私有Key
+LOCAL_AGENT_MODEL_NAME=gpt-4.1
+```
+
+如果要让 agent 跑命令，仍需额外开启安全 Bash，并精确列出允许命令：
+
+```env
+AGENT_BASH_ENABLED=1
+AGENT_BASH_ALLOWLIST=git status;npm test;npm run build
+```
+
+注意：把 `npm test`、`npm run build` 加入 allowlist，等于信任当前项目的 npm scripts。
 
 ## 文档
 
@@ -94,4 +128,4 @@ BACKUP_BEFORE_OVERWRITE=1
 
 ## 安全提醒
 
-这个项目会把本地目录通过 MCP 工具暴露给 ChatGPT。请始终使用 `ROOTS` 白名单，保持默认敏感文件排除策略，不要把整个磁盘作为 ROOTS，不要开启 shell 执行能力。
+这个项目会把本地目录通过 MCP 工具暴露给 ChatGPT。请始终使用 `ROOTS` 白名单，保持默认敏感文件排除策略，不要把整个磁盘作为 ROOTS。安全 Bash 默认关闭；如果开启，只把你真正信任的命令加入 `AGENT_BASH_ALLOWLIST`。

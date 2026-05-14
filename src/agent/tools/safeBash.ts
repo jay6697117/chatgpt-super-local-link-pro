@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 
@@ -20,6 +21,8 @@ export interface ValidatedSafeCommand {
   command: string;
   executable: string;
   args: string[];
+  useShell: boolean;
+  riskReasons: string[];
 }
 
 interface OutputCapture {
@@ -43,6 +46,7 @@ interface SpawnResult extends OutputCapture {
 const META_CHARACTER_PATTERN = /[;&|><`$\n\r]/;
 const DANGEROUS_EXECUTABLES = new Set(['rm', 'mv', 'cp', 'chmod', 'chown', 'sudo', 'su', 'curl', 'wget', 'ssh', 'scp', 'rsync', 'bash', 'sh', 'zsh']);
 const MINIMAL_ENV_KEYS = ['PATH', 'HOME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'LC_ALL', 'SystemRoot', 'WINDIR'];
+const CONFIRMATION_PREFIX = 'CONFIRM_SAFE_BASH';
 
 function commandRejection(message: string, details?: Record<string, unknown>): AppError {
   return new AppError('COMMAND_REJECTED', message, 403, details);
@@ -64,11 +68,43 @@ function dangerousFamily(tokens: string[]): string | null {
   return null;
 }
 
-export function validateSafeCommand(command: string, allowlist: readonly string[]): ValidatedSafeCommand {
-  if (META_CHARACTER_PATTERN.test(command)) {
-    throw commandRejection('Command contains a rejected shell metacharacter', { command });
-  }
+function isCommandAllowlisted(command: string, allowlist: readonly string[]): boolean {
+  return allowlist.includes('*') || allowlist.includes(command);
+}
 
+export function createDangerousCommandConfirmationToken(command: string): string {
+  const digest = crypto.createHash('sha256').update(command).digest('hex').slice(0, 16);
+  return `${CONFIRMATION_PREFIX}:${digest}`;
+}
+
+function hasUserConfirmation(command: string, userPrompt: string | undefined): boolean {
+  return (userPrompt ?? '').includes(createDangerousCommandConfirmationToken(command));
+}
+
+function commandRiskReasons(command: string, tokens: string[]): string[] {
+  const reasons: string[] = [];
+  if (META_CHARACTER_PATTERN.test(command)) reasons.push('shell metacharacter');
+
+  const executable = tokens[0] ?? '';
+  if (executable.includes('/') || executable.includes('\\')) reasons.push('executable path separator');
+
+  const dangerous = dangerousFamily(tokens);
+  if (dangerous) reasons.push(`dangerous command family: ${dangerous}`);
+
+  return reasons;
+}
+
+function confirmationRequired(command: string, reasons: string[]): AppError {
+  const confirmationToken = createDangerousCommandConfirmationToken(command);
+  return new AppError('COMMAND_REQUIRES_CONFIRMATION', 'Command requires explicit user confirmation before execution.', 403, {
+    command,
+    reasons,
+    confirmationToken,
+    instruction: `Ask the user to confirm this exact command, then retry in a new request that includes: ${confirmationToken}`
+  });
+}
+
+export function validateSafeCommand(command: string, allowlist: readonly string[], userPrompt?: string): ValidatedSafeCommand {
   const normalizedCommand = command.trim();
   if (!normalizedCommand) {
     throw new AppError('INVALID_INPUT', 'command is required', 400);
@@ -80,20 +116,22 @@ export function validateSafeCommand(command: string, allowlist: readonly string[
     throw new AppError('INVALID_INPUT', 'command is required', 400);
   }
 
-  if (executable.includes('/') || executable.includes('\\')) {
-    throw commandRejection('Command name must not include path separators', { command: normalizedCommand, executable });
-  }
-
-  const dangerous = dangerousFamily(tokens);
-  if (dangerous) {
-    throw commandRejection('Command belongs to a rejected dangerous command family', { command: normalizedCommand, family: dangerous });
-  }
-
-  if (!allowlist.includes(normalizedCommand)) {
+  if (!isCommandAllowlisted(normalizedCommand, allowlist)) {
     throw new AppError('COMMAND_NOT_ALLOWED', 'Command is not in AGENT_BASH_ALLOWLIST', 403, { command: normalizedCommand });
   }
 
-  return { command: normalizedCommand, executable, args: tokens.slice(1) };
+  const riskReasons = commandRiskReasons(normalizedCommand, tokens);
+  if (riskReasons.length > 0 && !hasUserConfirmation(normalizedCommand, userPrompt)) {
+    throw confirmationRequired(normalizedCommand, riskReasons);
+  }
+
+  return {
+    command: normalizedCommand,
+    executable,
+    args: tokens.slice(1),
+    useShell: META_CHARACTER_PATTERN.test(normalizedCommand),
+    riskReasons
+  };
 }
 
 function createMinimalEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -168,13 +206,11 @@ function runSafeCommand(command: ValidatedSafeCommand, cwd: string, config: AppC
     let settled = false;
     let killTimer: NodeJS.Timeout | undefined;
 
-    const child = spawn(command.executable, command.args, {
-      cwd,
-      env: commandEnv(config),
-      shell: false,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true
-    });
+    const stdio: ['ignore', 'pipe', 'pipe'] = ['ignore', 'pipe', 'pipe'];
+    const env = commandEnv(config);
+    const child = command.useShell
+      ? spawn(command.command, [], { cwd, env, shell: true, stdio, windowsHide: true })
+      : spawn(command.executable, command.args, { cwd, env, shell: false, stdio, windowsHide: true });
 
     const timeout = setTimeout(() => {
       timedOut = true;
@@ -228,13 +264,14 @@ function runSafeCommand(command: ValidatedSafeCommand, cwd: string, config: AppC
 export function createSafeBashTool(): AgentToolDefinition<typeof safeBashInputSchema> {
   return {
     name: 'safe_bash',
-    description: 'Run one exact allowlisted command without a shell inside an allowed ROOTS directory. Disabled unless AGENT_BASH_ENABLED=1.',
+    description:
+      'Run one allowlisted command inside an allowed ROOTS directory. AGENT_BASH_ALLOWLIST=* allows any command. Dangerous command families and shell metacharacters require a confirmation code from the current user request.',
     inputSchema: safeBashInputSchema,
     modelParameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
-        command: { type: 'string', description: 'Exact command string. Must fully match AGENT_BASH_ALLOWLIST.' },
+        command: { type: 'string', description: 'Command string. Must match AGENT_BASH_ALLOWLIST exactly unless AGENT_BASH_ALLOWLIST=*.' },
         cwd: { type: 'string', description: 'Working directory under ROOTS. Defaults to the agent cwd.' },
         timeoutMs: { type: 'number', description: 'Optional shorter timeout in milliseconds, capped by AGENT_BASH_TIMEOUT_MS.' }
       },
@@ -249,7 +286,7 @@ export function createSafeBashTool(): AgentToolDefinition<typeof safeBashInputSc
         throw new AppError('COMMAND_DISABLED', 'Safe Bash is disabled by AGENT_BASH_ENABLED=0', 403);
       }
 
-      const command = validateSafeCommand(input.command, config.agentBash.allowlist);
+      const command = validateSafeCommand(input.command, config.agentBash.allowlist, context.userPrompt);
       const cwd = await resolveWorkingDirectory(input.cwd ?? context.cwd, config);
       const timeoutMs = commandTimeoutMs(input, config);
 
@@ -262,7 +299,9 @@ export function createSafeBashTool(): AgentToolDefinition<typeof safeBashInputSc
           command: command.command,
           cwd: cwd.absolutePath,
           relativeCwd: cwd.relativePath,
-          timeoutMs
+          timeoutMs,
+          useShell: command.useShell,
+          riskReasons: command.riskReasons
         };
       }
 
@@ -278,7 +317,9 @@ export function createSafeBashTool(): AgentToolDefinition<typeof safeBashInputSc
         stderr: result.stderr,
         outputTruncated: result.outputTruncated,
         outputBytes: result.outputBytes,
-        durationMs: result.durationMs
+        durationMs: result.durationMs,
+        useShell: command.useShell,
+        riskReasons: command.riskReasons
       };
     }
   };

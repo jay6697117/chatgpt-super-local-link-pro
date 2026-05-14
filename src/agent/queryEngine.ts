@@ -49,7 +49,7 @@ function systemPrompt(config: AppConfig, cwd: string, dryRun: boolean): string {
     'Never request, print, or summarize secrets, tokens, API keys, credentials, SSH keys, browser profiles, database dumps, or blocked paths.',
     'Before changing an existing file, call read_file on that exact file and receive a non-truncated result.',
     'Prefer replace_in_file for small targeted edits and write_file for complete file rewrites.',
-    'Safe Bash is disabled unless server config enables it, and enabled Bash still only runs exact allowlisted commands.',
+    'Safe Bash is disabled unless server config enables it. Enabled Bash runs allowlisted commands; AGENT_BASH_ALLOWLIST=* allows any command. Dangerous commands require a confirmation code in the current user request. Do not retry a dangerous command until the user provides that code.',
     dryRun ? 'Dry-run mode is enabled. Write tools will report intended changes without modifying files.' : 'Dry-run mode is disabled. Write tools may modify files when server write policy allows it.'
   ].join('\n');
 }
@@ -107,6 +107,7 @@ export class QueryEngine {
       filesRead,
       filesChanged,
       bashCommands,
+      userPrompt: input.prompt,
       signal: undefined
     };
 

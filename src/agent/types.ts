@@ -95,6 +95,7 @@ export interface AgentToolContext {
   filesRead: Set<string>;
   filesChanged: Set<string>;
   bashCommands: string[];
+  userPrompt?: string;
   signal?: AbortSignal;
 }
 
